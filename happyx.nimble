@@ -10,7 +10,7 @@ bin = @["hpx"]
 
 # Deps
 
-requires "nim >= 1.6.12"
+requires "nim >= 1.6.10"
 requires "cligen"
 requires "regex"
 requires "httpx"
