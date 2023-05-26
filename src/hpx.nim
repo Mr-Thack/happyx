@@ -82,7 +82,9 @@ proc compileProject(): ProjectData {. discardable .} =
       [
         "js", "-c", "--hints:off", "--warnings:off",
         "--opt:size", "--d:danger", "-x:off", "-a:off", result.mainFile
-      ]
+      ],
+      # set env=nil and explicitly tell process to UsePath
+      nil, {poUsePath}
     )
   of ptSSG:
     return result
