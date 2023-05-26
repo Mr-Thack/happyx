@@ -167,7 +167,7 @@ proc mainHelpMessage() =
     fgWhite, " HappyX projects\n"
   )
   styledEcho "Usage:"
-  styledEcho fgMagenta, "hpx ", fgBlue, "build|dev|create|help ", fgYellow, "[subcommand-args]"
+  styledEcho fgMagenta, "hpx ", fgBlue, "build|dev|create|serve|help ", fgYellow, "[subcommand-args]"
 
 
 proc buildCommand(optSize: bool = false): int =
@@ -488,6 +488,43 @@ proc devCommand(host: string = "127.0.0.1", port: int = 5000,
   deinitLock(L)
   illwillDeinit()
 
+proc serveCommand(host: string = "0.0.0.0", port: int = 80,
+                reload: bool = false): int =
+  ## Serve SPA for production 
+  var
+    project = compileProject()
+    idx = 0
+    arr = ["/", "|", "\\", "-"]
+  
+  if project.error.len > 0:
+    return QuitFailure
+
+  # Explain SSG Error
+  if project.projectType == ptSSG:
+    styledEcho fgRed, "SSG projects not required to be supported in serve mode."
+    styledEcho fgMagenta, "Compile and run your SSG server!"
+    illwillDeinit()
+    deinitLock(L)
+    return QuitSuccess
+
+  # Start SPA server
+  styledEcho "Server launched at ", fgGreen, styleUnderscore, "http://", host, ":", $port, fgWhite
+  
+  serve(host, port):
+    get "/":
+      let f = open(getCurrentDir() / "build" / "index.html")
+      var data = f.readAll()
+      f.close()
+      req.answerHtml(data)
+ 
+    get "/{file:path}":
+      var result = ""
+      let path = getCurrentDir() / "build" / file.replace('\\', '/').replace('/', DirSep)
+      echo "File: ", file
+      echo "Path: ", path
+      if fileExists(path):
+        await req.answerFile(path)
+
 proc mainCommand(version = false): int =
   if version:
     styledEcho "HappyX ", fgGreen, VERSION
@@ -508,7 +545,8 @@ when isMainModule:
     [
       mainCommand,
       short = {"version": 'v'}
-    ]
+    ],
+    [serveCommand, cmdName = "serve"]
   )
   let
     pars = commandLineParams()
@@ -524,6 +562,8 @@ when isMainModule:
     quit(dispatchdev(cmdline = pars[1..^1]))
   of "create":
     quit(dispatchcreate(cmdline = pars[1..^1]))
+  of "serve":
+    quit(dispatchserve(cmdline = pars[1..^1]))
   of "help":
     let
       subcmdHelp =
@@ -559,6 +599,13 @@ when isMainModule:
       styledEcho align("templates", 12), "|t - Enable templates (only for SSG)"
       styledEcho align("path-params", 12), "|p - Use path params assignment"
       styledEcho align("use-tailwind", 12), "|u - Use Tailwind CSS 3 (only for SPA)"
+    of "serve":
+      styledEcho fgBlue, "HappyX", fgMagenta, " serve ", fgWhite, "command starts SPA production server."
+      styledEcho "\nUsage:"
+      styledEcho fgMagenta, "hpx serve\n"
+      styledEcho "Optional arguments:"
+      styledEcho align("host", 8), "|h - change address (default is 0.0.0.0)"
+      styledEcho align("port", 8), "|p - change port (default is 80)"
     else:
       styledEcho fgRed, "Unknown subcommand: ", fgWhite, subcmdHelp
   of "":
